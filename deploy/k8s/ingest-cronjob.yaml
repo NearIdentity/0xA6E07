@@ -1,0 +1,62 @@
+# Crawls SITE_URL and stages each page as Markdown on the data volume.
+# Runs weekly; trigger it by hand the first time (and whenever you want a refresh):
+#   kubectl -n site-qa create job --from=cronjob/site-ingest site-ingest-$(date +%s)
+# After a refresh, restart the web app so it re-indexes:
+#   kubectl -n site-qa rollout restart deployment/site-qa-web
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: site-ingest
+  labels: {app.kubernetes.io/name: site-ingest, app.kubernetes.io/part-of: site-qa}
+spec:
+  schedule: "0 3 * * 0"             # Sundays 03:00 (cluster time, usually UTC)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600   # a hung crawl must not run forever
+      template:
+        metadata:
+          labels: {app.kubernetes.io/name: site-ingest, app.kubernetes.io/part-of: site-qa}
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            fsGroup: 10001            # makes the data volume writable by uid 10001
+            seccompProfile: {type: RuntimeDefault}
+          # ReadWriteOnce data volume: run on the same node as the web pod.
+          # Remove this block if the data volume is ReadWriteMany.
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchLabels: {app.kubernetes.io/name: site-qa-web}
+          containers:
+            - name: ingest
+              image: site-qa-ingest:0.1.0
+              envFrom:
+                - configMapRef: {name: site-qa-config}
+              # $(VAR) is expanded by Kubernetes from the env above.
+              args: ["ingest", "$(SITE_URL)", "--data-dir", "$(DATA_DIR)", "--max-pages", "$(MAX_PAGES)"]
+              resources:
+                requests: {cpu: 250m, memory: 512Mi}
+                limits: {memory: 2Gi}   # Chromium is memory-hungry
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities: {drop: ["ALL"]}
+                seccompProfile: {type: RuntimeDefault}
+              volumeMounts:
+                - {name: data, mountPath: /data}
+                - {name: shm, mountPath: /dev/shm}   # Chromium crashes on the default 64 MB /dev/shm
+                - {name: tmp, mountPath: /tmp}
+          volumes:
+            - name: data
+              persistentVolumeClaim: {claimName: site-qa-data}
+            - name: shm
+              emptyDir: {medium: Memory, sizeLimit: 1Gi}
+            - name: tmp
+              emptyDir: {}

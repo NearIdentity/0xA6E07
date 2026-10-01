@@ -1,0 +1,18 @@
+# Only the web app and the model-pull job may talk to Ollama. Enforced only if the
+# cluster's CNI supports NetworkPolicy (Calico, Cilium, ...); otherwise it is ignored.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ollama-allow-web-only
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: ollama}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: site-qa-web}
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: ollama-pull}
+      ports:
+        - {protocol: TCP, port: 11434}

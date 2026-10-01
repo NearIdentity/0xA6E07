@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: site-qa-config
+data:
+  # >>> EDIT: the company website to ingest and answer questions about.
+  SITE_URL: "https://www.example.com/"
+  MAX_PAGES: "50"
+  # Models are pulled into the Ollama volume by the ollama-pull Job.
+  CHAT_MODEL: "llama3.1"
+  EMBED_MODEL: "nomic-embed-text"
+  # In-cluster Ollama service. Point this at an external server to skip the
+  # ollama Deployment (and remove ollama.yaml / ollama-pull-job.yaml from kustomization.yaml).
+  OLLAMA_URL: "http://ollama:11434"
+  # Where the data volume is mounted in the web and ingest pods.
+  DATA_DIR: "/data"

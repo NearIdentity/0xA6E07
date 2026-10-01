@@ -1,0 +1,10 @@
+# Runtime dependencies of the web image only (no crawler, so no Playwright/Chromium).
+# The ingest image installs the repo-root requirements.txt instead.
+# For reproducible builds, pin these (e.g. `pip freeze` from a tested environment).
+flask
+gunicorn>=26.2   # needs --no-control-socket (see Dockerfile)
+langchain-core
+langchain-ollama
+langchain-text-splitters
+pydantic>=2
+numpy
