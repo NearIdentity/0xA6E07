@@ -1,0 +1,28 @@
+# Deploy everything with:   kubectl apply -k deploy/k8s
+# (Secrets are created separately, never committed: see deploy/README.md.)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: site-qa
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - pvc.yaml
+  - ollama.yaml
+  - ollama-pull-job.yaml
+  - ingest-cronjob.yaml
+  - web.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+
+# >>> EDIT: point these at the registry you pushed the images to.
+images:
+  - name: site-qa-web
+    newName: registry.example.com/site-qa-web
+    newTag: 0.1.0
+  - name: site-qa-ingest
+    newName: registry.example.com/site-qa-ingest
+    newTag: 0.1.0
+  # Ollama version is pinned here too; keep the server and pull job in step.
+  - name: ollama/ollama
+    newTag: 0.35.0

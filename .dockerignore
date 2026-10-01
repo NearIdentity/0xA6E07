@@ -1,0 +1,10 @@
+# Keep the build context small and keep local state/secrets out of images.
+.git
+.gitignore
+venv/
+data/
+**/__pycache__/
+*.pyc
+tests/
+deploy/k8s/
+*.patch

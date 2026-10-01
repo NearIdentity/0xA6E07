@@ -1,0 +1,26 @@
+# Staged Markdown pages. Written by the ingest CronJob, read by the web app.
+# ReadWriteOnce volumes can be shared only by pods on the SAME node; the ingest
+# pods use a podAffinity rule to land next to the web pod. With an RWX storage
+# class (NFS, CephFS, EFS, ...) set accessModes to ReadWriteMany and drop that rule.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: site-qa-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  # storageClassName: <your-class>     # omit to use the cluster default
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Downloaded Ollama models. Size for your models (llama3.1 8B is ~5 GB).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+spec:
+  accessModes: ["ReadWriteOnce"]
+  # storageClassName: <your-class>
+  resources:
+    requests:
+      storage: 20Gi
