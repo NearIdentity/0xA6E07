@@ -4,6 +4,7 @@ langchain-ollama
 langchain-text-splitters
 pydantic>=2
 numpy            # used by LangChain's in-memory vector store
+flask             # web UI (src/web.py)
 # Tools in src/crawler.py and src/url_to_md.py
 playwright
 markdownify

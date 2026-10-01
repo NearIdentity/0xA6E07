@@ -34,6 +34,7 @@ No hosted APIs or keys are needed.
 | `src/stage.py` | Ingest step: runs the two tools above and writes `data/<host>/*.md`. |
 | `src/agent.py` | `SiteAgent`: chunking, embeddings, retrieval, answering, chat memory. |
 | `src/cli.py` | The command-line entry point. |
+| `src/web.py` | Flask web UI (`src/templates/index.html`): the same agent in a browser. |
 
 Design points:
 
@@ -99,7 +100,7 @@ ollama pull nomic-embed-text
 
 ### Additional Notes -- Ollama Run
 
-```bashh
+```bash
 ollama serve
 ```
 
@@ -129,6 +130,39 @@ you> What do they sell?
 
 Enter a blank line or press Ctrl-D to quit. Staged pages live under `data/`,
 which is git-ignored. 
+
+## Web UI (Flask)
+
+The same agent is available in a browser. Ingest a site first (it reads the
+same `data/<host>/` files as the CLI), then start the server:
+
+```bash
+python src/cli.py ingest example.com
+python src/web.py example.com               # http://127.0.0.1:5000
+python src/web.py example.com --port 8080 --model llama3.1
+```
+
+It accepts the same `--data-dir`, `--model`, `--embed-model` and `--ollama-url`
+options as `cli.py chat`, plus `--host` and `--port`.
+
+- **One index, many conversations.** The vector index is built once at start-up.
+  Each browser session gets its own chat history (a lightweight copy of the
+  agent that shares the index), so visitors don't see each other's questions.
+  Histories live in server memory: they are lost on restart, and the 100 least
+  recently used conversations are dropped. "New conversation" clears yours.
+- **Endpoints.** `GET /` serves the page; `POST /api/chat` takes
+  `{"message": "..."}` and returns `{"answer", "found_in_context", "sources"}`;
+  `POST /api/reset` clears the session's history. Requests must be
+  `application/json`.
+- **Safety defaults.** It binds to `127.0.0.1` and has **no login**, so don't
+  expose it to a network as is. Answers are inserted into the page as plain text
+  (never HTML) because they derive from untrusted web pages, and only `http(s)`
+  source URLs become links. Set `FLASK_SECRET_KEY` to keep sessions valid across
+  restarts. The built-in Flask server is for local use; for shared deployments
+  run `web.create_app(agent, site_name)` under a production server such as
+  waitress.
+- **Tests.** `python -m unittest tests/test_web.py` runs the endpoint tests
+  with fake models (no Ollama needed).
 
 ## Testing status
 
