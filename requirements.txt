@@ -1,0 +1,11 @@
+# Primary
+langchain-core
+langchain-openai   # client for vLLM's OpenAI-compatible API
+langchain-text-splitters
+pydantic>=2
+numpy            # used by LangChain's in-memory vector store
+# Tools in src/crawler.py and src/url_to_md.py
+playwright
+markdownify
+beautifulsoup4
+# vLLM itself runs as a separate server on the GPU machine: pip install vllm
