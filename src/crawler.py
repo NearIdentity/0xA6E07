@@ -22,7 +22,7 @@ def _normalize(url: str) -> str:
     return parsed._replace(path=path).geturl()
 
 
-def crawl(root_url: str, max_pages: int = 500, timeout_ms: int = 30_000) -> Iterator[str]:
+def crawl(root_url: str, max_pages: int = 500, timeout_ms: int = 1000) -> Iterator[str]:
     """Breadth-first crawl starting at `root_url`, yielding each distinct URL
     on the same host whose path is at or below the root's path.
 
