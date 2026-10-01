@@ -1,0 +1,36 @@
+# Assumes the ingress-nginx controller. The app has NO login of its own, so this
+# Ingress turns on HTTP basic auth (secret "site-qa-basic-auth", see deploy/README.md).
+# Do not remove the auth annotations unless something else (an SSO proxy, a VPN)
+# protects the app: anyone who can reach it can use your model server.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: site-qa-web
+  labels: {app.kubernetes.io/name: site-qa-web, app.kubernetes.io/part-of: site-qa}
+  annotations:
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: site-qa-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Site Q&A"
+    # Local models can take a while to answer; the default 60 s would cut them off.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-body-size: "64k"
+    # With more than one web replica, pin each browser to one pod (history is per pod):
+    # nginx.ingress.kubernetes.io/affinity: cookie
+    # Automatic certificates, if cert-manager is installed:
+    # cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [qa.example.com]       # >>> EDIT
+      secretName: site-qa-tls       # created by cert-manager, or supply your own
+  rules:
+    - host: qa.example.com          # >>> EDIT
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: site-qa-web
+                port: {name: http}
