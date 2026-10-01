@@ -64,7 +64,7 @@ Design points:
 ## Setup
 
 ```bash
-bash venv-setup.sh                 # optional: creates ./venv
+bash venv-setup.sh -b python3.12                # optional: creates ./venv
 . venv/bin/activate
 pip install -r requirements.txt
 playwright install chromium
