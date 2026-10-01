@@ -41,6 +41,14 @@ Design points:
 - **Relevant URLs.** The crawler stays on the root's host and path. `stage.py`
   also drops non-page assets (PDFs, images, CSS/JS, ...) and caps the crawl at
   `--max-pages` (default 50).
+- **Polite crawling.** `crawler.py` obeys the site's `robots.txt` (RFC 9309):
+  disallowed URLs are never fetched or staged, wildcard rules (`*`, `$`) and
+  `Allow` overrides work, and `Crawl-delay` / `Request-rate` spacing is honoured.
+  It announces itself as `0xA6E07-crawler/1.0`, so site owners can address it by
+  name in `robots.txt`. A missing `robots.txt` (any 4xx other than 429) means
+  "everything allowed"; an unreachable one (5xx, 429, network error) means
+  "assume off limits" and nothing is crawled. A redirect that lands in a
+  disallowed area is dropped (the browser has already followed it once).
 - **Crawl first, convert second.** `crawl()` is a generator that holds a
   Playwright sync session open, and that API can't be nested. `stage.py`
   therefore finishes the crawl before calling `url_to_markdown`. This means
@@ -100,7 +108,7 @@ ollama pull nomic-embed-text
 
 ### Additional Notes -- Ollama Run
 
-```bash
+```bashh
 ollama serve
 ```
 
@@ -162,7 +170,10 @@ options as `cli.py chat`, plus `--host` and `--port`.
   run `web.create_app(agent, site_name)` under a production server such as
   waitress.
 - **Tests.** `python -m unittest tests/test_web.py` runs the endpoint tests
-  with fake models (no Ollama needed).
+  with fake models (no Ollama needed). Meanwhile, 
+  `python -m unittest tests/test_crawler.py` tests the web crawler.
+- **Containers / Kubernetes.** The `Dockerfile` and `deploy/` directory package this
+  web app for Kubernetes; see [`deploy/README.md`](deploy/README.md).
 
 ## Testing status
 
@@ -177,7 +188,11 @@ output. If a model doesn't, pick another chat model with `--model`.
 
 - Only crawls what it can reach by following links; pages behind logins or
   not linked from the root are not found.
-- No `robots.txt` handling or rate limiting; only crawl sites you may crawl.
+- `robots.txt` is honoured (see above), but there is no other rate limiting, and
+  `robots.txt` is not a permission slip: only crawl sites you may crawl.
+  `url_to_md.py` does no robots check of its own; in the pipeline it only sees URLs
+  the crawler already approved. `crawl(..., respect_robots=False)` exists for sites
+  you own, but nothing in the CLI or the deployment uses it.
 - Answers are limited to the staged snapshot; re-run `ingest` to refresh.
 
 
