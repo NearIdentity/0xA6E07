@@ -6,15 +6,48 @@
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
+try:  # enables line editing/history in input(); not available on every platform
+    import readline  # noqa: F401
+    _HAS_READLINE = True
+except ImportError:
+    _HAS_READLINE = False
+
 from agent import SiteAgent
 from models import AgentConfig, StageConfig
 from stage import stage_site
+
+
+# ANSI colours: the user's prompt is yellow and the agent's reply is cyan.
+# Colour is skipped when output isn't a terminal (e.g. piped to a file) or when
+# the NO_COLOR environment variable is set (https://no-color.org).
+_USE_COLOR = sys.stdout.isatty() and "NO_COLOR" not in os.environ
+YELLOW, CYAN, RESET = "\033[33m", "\033[36m", "\033[0m"
+
+
+def _paint(text: str, color: str) -> str:
+    return f"{color}{text}{RESET}" if _USE_COLOR else text
+
+
+def _read_user_input() -> str:
+    """Prompt in yellow; the text the user types stays yellow too."""
+    if not _USE_COLOR:
+        return input("you> ").strip()
+    # With readline active, \001...\002 mark the escape codes as zero-width so
+    # cursor positioning and line editing stay correct. Without readline those
+    # markers would print as stray control characters, so only add them then.
+    start, end = ("\001", "\002") if _HAS_READLINE else ("", "")
+    try:
+        return input(f"{start}{YELLOW}{end}you> ").strip()
+    finally:
+        sys.stdout.write(RESET)  # always restore the terminal colour
+        sys.stdout.flush()
 
 
 def _host(url: str) -> str:
@@ -43,16 +76,16 @@ def do_chat(args) -> None:
     print(f"Ready: {len(agent.chunks)} chunks indexed. Ask a question (blank line or Ctrl-D to quit).\n")
     while True:
         try:
-            question = input("you> ").strip()
+            question = _read_user_input()
         except (EOFError, KeyboardInterrupt):
             break
-        if not question or question.lower() in ["exit", "quit"]:
+        if not question:
             break
         result, sources = agent.ask(question)
-        print(f"\nagent> {result.answer}")
+        reply = f"agent> {result.answer}"
         if sources:
-            print("sources:\n" + "\n".join(f"  - {s}" for s in sources))
-        print()
+            reply += "\nsources:\n" + "\n".join(f"  - {s}" for s in sources)
+        print("\n" + _paint(reply, CYAN) + "\n")
 
 
 def main() -> None:
